@@ -1,2 +1,2 @@
 # DDL.project2
-this project is about digital clock
+this project is all about digital clock
