@@ -1,12 +1,12 @@
 /*
-===============================================================================
+ ===============================================================================
  Name        : Assignment_3.c
  Author      : $(author)
  Version     :
  Copyright   : $(copyright)
  Description : main definition
-===============================================================================
-*/
+ ===============================================================================
+ */
 
 #ifdef __USE_CMSIS
 #include "LPC17xx.h"
@@ -24,80 +24,62 @@
 #define CLKOUTCFG (*(volatile unsigned int *)(0x400FC1C8))
 #define CLKSRCSEL (*(volatile unsigned int *)(0x400FC10C))
 #define PINSEL3 (*(volatile unsigned int *)(0x4002C00C))
-
-volatile int M = 51;
-volatile int N = 2;
+#define FIO0DIR (*(volatile unsigned int *)0x2009c000)
+#define FIO0PIN (*(volatile unsigned int *)0x2009c014)
 
 // PLL0 Feed Function
-void pllFeed (void) {
+void pllFeed(void) {
 	PLL0FEED = 0xAA;
 	PLL0FEED = 0x55;
 }
 
+void generateFrequency(int M, int N, int C, int K) {
+	CLKOUTCFG |= (1 << 8); // enables us to read from P1.27
+	PINSEL3 |= (1 << 22); // allows us to select P1.27 to measure clock
+
+	PLL0CON &= ~(1 << 1); //disconnect PLL step1
+	pllFeed();
+
+	PLL0CON &= ~(1 << 0); //disable PLL step2
+	pllFeed();
+
+	CLKSRCSEL = 0; // Choose 4MHz Clock step4
+
+	PLL0CFG = ((M - 1) << 0) | ((N - 1) << 16); // dividing clock step5
+	pllFeed();
+
+	PLL0CON |= (1 << 0); // Enable PLL0 to update step 6    //set cpu clk then connect
+	pllFeed();
+
+	while ((PLL0STAT & (1 << 26)) == 0x00) {
+	} // Wait for PLOCK0 to become 1 step 7
+
+	CCLKCFG = C; //dividing PLL clock by 4 step 8
+
+	CLKOUTCFG = K; //dividing CLLK clock by 8
+
+	PLL0CON |= (1 << 1); //connecting clock //enable step9
+	pllFeed();
+
+	CLKOUTCFG |= (1 << 8); // enables us to read from P1.27
+	PINSEL3 |= (1 << 22); // allows us to select P1.27 to measure clock
+}
+
 int main(void) {
 
-	//CLKSRCSEL |= (0);
-//	PLL0CON &= ~(1 << 1);
-//	pllFeed();
-	//RC source is default, we didn't write to CLKSRCSEL
-//	while ((PLL0STAT & (1 << 24)) == 0x00)
-//	;
-	PLL0CON &= ~(1 << 0);
-	pllFeed();
+	while (1) {
+		if (((FIO0PIN >> 4) & 0x01) == 0)
+		{
+			generateFrequency(40, 1, 7, 16);
+			printf("generating 9MHz with M = 40, N = 2, C = 7, K = 16\n");
+		}
+		else
+		{
+			generateFrequency(40, 2, 7, 16);
+			printf("generating 10MHz with M = 40, N = 2, C = 7, K = 16\n");
+		}
 
-//	while ((PLL0STAT & (1 << 24)) == 0x00)
-//			;
-
-// Choose 4MHz Clock
-	CLKSRCSEL = 0;
-
-	// Turn on PLL0
-	PLL0CFG = ((M-1)<<0)|((N-1)<<16);
-	pllFeed();
-	PLL0CON |= (1 << 0);
-	pllFeed();
-
-	// Wait for main PLL (PLL0) to come up
-//	while ((PLL0STAT & (1 << 24)) == 0x00)
-//		;
-	// Wait for PLOCK0 to become 1
-	while ((PLL0STAT & (1 << 26)) == 0x00)
-	{}
-
-	// Enable PLL0 to update
-	PLL0CON = 0x1;
-	pllFeed();
-
-	PLL0CON |= (1<<1);
-	pllFeed();
-//	while ((PLL0STAT & (1 << 25)) == 0x00)
-//		; //Wait for PLL0 to connect
-
-	// shifting 3 into CCLKCFG selecting clock divider value C
-	CCLKCFG = 4;
-
-	// Connect to the PLL0
-//PLL0CON |= 1 << 1;
-//pllFeed();
-
-//CLKOUTCFG &= ~(1<<0);
-//CLKOUTCFG &= ~(1<<1);
-//CLKOUTCFG &= ~(1<<2);
-//CLKOUTCFG &= ~(1<<3);
-
-
-
-
-	// shifting 10 into CLKOUTCFG selecting clock divider value K
-	CLKOUTCFG = 10;
-
-	// enables us to read from P1.27
-	CLKOUTCFG |= (1 << 8);
-
-	// allows us to select P1.27 to measure clock
-	PINSEL3 |= (1 << 22);
-
+	}
 
 	return 0;
 }
-
