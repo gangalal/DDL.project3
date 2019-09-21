@@ -1,21 +1,20 @@
 /*
- ===============================================================================
+===============================================================================
  Name        : Assignment_3.c
  Author      : $(author)
  Version     :
  Copyright   : $(copyright)
  Description : main definition
- ===============================================================================
- */
+===============================================================================
+*/
 
 #ifdef __USE_CMSIS
 #include "LPC17xx.h"
 #endif
 
-#include <cr_section_macros.h>
-
 #include <stdio.h>
 
+// Initialize Ports
 #define PLL0CON (*(volatile unsigned char *)(0x400FC080))
 #define PLL0FEED (*(volatile unsigned char *)(0x400FC08C))
 #define PLL0STAT (*(volatile unsigned int *)(0x400FC088))
@@ -26,60 +25,75 @@
 #define PINSEL3 (*(volatile unsigned int *)(0x4002C00C))
 #define FIO0DIR (*(volatile unsigned int *)0x2009c000)
 #define FIO0PIN (*(volatile unsigned int *)0x2009c014)
+#define FIO0DIR (*(volatile unsigned int *)0x2009c000) // add switch
+#define FIO0PIN (*(volatile unsigned int *)0x2009c014) // add switch
 
-// PLL0 Feed Function
-void pllFeed(void) {
-	PLL0FEED = 0xAA;
-	PLL0FEED = 0x55;
+/**
+ * PLL0 Feed Function
+ */
+void pllFeed(void)
+{
+    PLL0FEED = 0xAA;
+    PLL0FEED = 0x55;
 }
 
-void generateFrequency(int M, int N, int C, int K) {
-	CLKOUTCFG |= (1 << 8); // enables us to read from P1.27
-	PINSEL3 |= (1 << 22); // allows us to select P1.27 to measure clock
+/**
+ * volatile Integer M = 40 -> 10MHz, M = 36 -> 9MHz volatile integer N = 1;
+ */
 
-	PLL0CON &= ~(1 << 1); //disconnect PLL step1
-	pllFeed();
+// Generate Frequency
+void genFreq(int M, int N)
+{
+    PLL0CON &= ~(1 << 1); //disconnect PLL step1
+    pllFeed();
+    PLL0CON &= ~(1 << 0); //disable PLL step2
+    pllFeed();
+    CLKSRCSEL = 0; // Choose 4MHz Clock step4
+    PLL0CFG = ((M - 1) << 0) | ((N - 1) << 16); // dividing clock step5
+    pllFeed();
+    PLL0CON |= (1 << 0); // Enable PLL0 to update step 6
+    pllFeed();
+    while ((PLL0STAT & (1 << 26)) == 0x00)
+    {
+        // Wait for PLOCK0 to become 1 step 7
+    }
+    CCLKCFG = 7; //dividing PLL clock by 8 step 8 , shift into bits 0,1, & 2
+    CLKOUTCFG |= (1 << 4) | (1 << 5); //dividing CCLK clock by 4, shifting into bits 4 & 5
 
-	PLL0CON &= ~(1 << 0); //disable PLL step2
-	pllFeed();
-
-	CLKSRCSEL = 0; // Choose 4MHz Clock step4
-
-	PLL0CFG = ((M - 1) << 0) | ((N - 1) << 16); // dividing clock step5
-	pllFeed();
-
-	PLL0CON |= (1 << 0); // Enable PLL0 to update step 6    //set cpu clk then connect
-	pllFeed();
-
-	while ((PLL0STAT & (1 << 26)) == 0x00) {
-	} // Wait for PLOCK0 to become 1 step 7
-
-	CCLKCFG = C; //dividing PLL clock by 4 step 8
-
-	CLKOUTCFG = K; //dividing CLLK clock by 8
-
-	PLL0CON |= (1 << 1); //connecting clock //enable step9
-	pllFeed();
-
-	CLKOUTCFG |= (1 << 8); // enables us to read from P1.27
-	PINSEL3 |= (1 << 22); // allows us to select P1.27 to measure clock
+    PLL0CON |= (1 << 1); //connecting clock step9
+    pllFeed();
+    CLKOUTCFG |= (1 << 8); // enables us to read from P1.27
+    PINSEL3 |= (1 << 22); // allows us to select P1.27 to measure clock
 }
 
-int main(void) {
+/**
+ * wait function
+ * @parameter count passes value to iterate number of times
+ */
+void wait_ticks(unsigned long count)
+{
+    volatile int ticks;
+    for (ticks = 0; ticks < count; ticks++)
+    {
 
-	while (1) {
-		if (((FIO0PIN >> 4) & 0x01) == 0)
-		{
-			generateFrequency(40, 1, 7, 16);
-			printf("generating 9MHz with M = 40, N = 2, C = 7, K = 16\n");
-		}
-		else
-		{
-			generateFrequency(40, 2, 7, 16);
-			printf("generating 10MHz with M = 40, N = 2, C = 7, K = 16\n");
-		}
+    }
+}
 
-	}
 
-	return 0;
+int main(void)
+{
+    while (1)
+    {
+        if (((FIO0PIN >> 4) & 0x01) == 0)
+        {
+            genFreq(36, 1); // if switch is pressed, adjust M and N values
+            wait_ticks(10000000); // control switch bounce
+        }
+        else
+        {
+            genFreq(40, 1); // if no switch, generate 10MHz
+            wait_ticks(100000); //oscilloscope won't generate frequency correctly so, we need to wait some time here
+        }
+    }
+    return 0;
 }
