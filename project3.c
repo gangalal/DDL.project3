@@ -85,8 +85,8 @@ int main(void)
         }
         else
         {
-            genFreq(40, 1);
-            wait_ticks(100000); //we are calling genFreq function too quick for many times oscilloscope won't read correctly so, we need to wait some time here
+            genFreq(40, 1); // sincec, we are calling genFreq function too quick for many times
+            wait_ticks(100000); //oscilloscope won't genrate frequency correctly so, we need to wait some time here
         }
     }
     return 0;
