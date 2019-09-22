@@ -18,8 +18,6 @@
 #define CLKOUTCFG (*(volatile unsigned int *)(0x400FC1C8))
 #define CLKSRCSEL (*(volatile unsigned int *)(0x400FC10C))
 #define PINSEL3 (*(volatile unsigned int *)(0x4002C00C))
-#define FIO0DIR (*(volatile unsigned int *)0x2009c000)
-#define FIO0PIN (*(volatile unsigned int *)0x2009c014)
 #define FIO0DIR (*(volatile unsigned int *)0x2009c000) // add switch
 #define FIO0PIN (*(volatile unsigned int *)0x2009c014) // add switch
 
@@ -33,6 +31,7 @@ void pllFeed(void)
 }
 
 /**
+ * Generate Frequency
  * volatile int M = 40 -> 10MHz, M = 36 -> 9MHz volatile int N = 1;
  */
 void genFreq(int M, int N)
@@ -85,7 +84,7 @@ int main(void)
         }
         else
         {
-            genFreq(40, 1); // sincec, we are calling genFreq function too quick for many times
+            genFreq(40, 1); // since, we are calling genFreq function too quick for many times
             wait_ticks(100000); //oscilloscope won't genrate frequency correctly so, we need to wait some time here
         }
     }
